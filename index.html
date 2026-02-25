@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -7,61 +7,102 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-thumb { background: #8884; border-radius: 10px; }
-        .markdown-body pre { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin: 0.5rem 0; }
-        #loading { position: fixed; inset: 0; background: white; display: flex; align-items: center; justify-content: center; z-index: 9999; }
-        .dark #loading { background: #131314; color: white; }
-        #sidebar { transition: transform 0.3s ease; }
-        @media (max-width: 768px) { #sidebar.closed { transform: translateX(-100%); } }
+        body { margin: 0; padding: 0; height: 100vh; width: 100vw; overflow: hidden; }
+        #loading-overlay {
+            position: fixed; inset: 0; background: #ffffff; 
+            display: flex; flex-direction: column; align-items: center; 
+            justify-content: center; z-index: 10000;
+        }
+        .dark #loading-overlay { background: #131314; color: white; }
+        #sidebar { transition: transform 0.3s ease; z-index: 50; }
+        .sidebar-closed { transform: translateX(-100%); }
+        @media (min-width: 768px) { .sidebar-closed { transform: translateX(0); } }
+        .markdown-body pre { background: #1e1e1e; color: #fff; padding: 1rem; border-radius: 8px; overflow-x: auto; }
+        .markdown-body code { font-family: monospace; color: #eb5757; }
     </style>
 </head>
-<body class="bg-gray-50 dark:bg-[#131314] text-gray-900 dark:text-gray-100 h-full flex flex-col transition-colors duration-200">
+<body class="bg-white dark:bg-[#131314] text-gray-900 dark:text-gray-100 transition-colors duration-200">
 
-    <div id="loading">
-        <div class="text-center">
-            <div class="animate-pulse text-2xl font-bold text-indigo-600 mb-2">Gurnihal GPT</div>
-            <div class="text-xs text-gray-400">Initializing Secure Interface...</div>
-        </div>
+    <div id="loading-overlay">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
+        <div class="text-xl font-bold font-sans">Gurnihal GPT</div>
     </div>
 
-    <div class="flex flex-1 h-full overflow-hidden relative">
-        <aside id="sidebar" class="fixed md:relative z-40 w-72 h-full bg-gray-100 dark:bg-[#1e1f20] border-r border-gray-200 dark:border-gray-700 flex flex-col closed md:transform-none">
+    <div class="flex h-screen w-screen overflow-hidden">
+        <aside id="sidebar" class="fixed md:relative w-72 h-full bg-gray-50 dark:bg-[#1e1f20] border-r border-gray-200 dark:border-gray-700 flex flex-col sidebar-closed md:transform-none">
             <div class="p-4 flex flex-col h-full">
-                <button onclick="createNewChat()" class="flex items-center gap-3 px-4 py-3 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-all mb-6 shadow-md">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                    <span class="font-medium text-sm">New Conversation</span>
+                <button onclick="createNewChat()" class="w-full py-3 rounded-full bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition shadow-sm mb-6">
+                    + New Chat
                 </button>
-                <div id="chat-list" class="flex-1 overflow-y-auto space-y-1"></div>
-                <div class="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700 space-y-1">
-                    <button onclick="toggleDarkMode()" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors">
-                        <span class="text-sm">🌓 Toggle Theme</span>
-                    </button>
+                <div id="chat-list" class="flex-1 overflow-y-auto space-y-2"></div>
+                <div class="mt-auto border-t pt-4 dark:border-gray-700">
+                    <button onclick="toggleDarkMode()" class="w-full text-left px-3 py-2 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg">🌓 Change Theme</button>
+                    <button onclick="toggleModal('settings-modal')" class="w-full text-left px-3 py-2 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg">⚙️ Settings</button>
                 </div>
             </div>
         </aside>
 
-        <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/50 z-30 hidden md:hidden"></div>
-
-        <main class="flex-1 flex flex-col h-full bg-white dark:bg-[#131314] relative">
-            <header class="h-16 flex items-center justify-between px-4 border-b border-gray-100 dark:border-gray-800">
-                <div class="flex items-center gap-3">
-                    <button onclick="toggleSidebar()" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg md:hidden">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-                    </button>
-                    <h1 id="current-chat-title" class="font-bold text-indigo-600 dark:text-indigo-400">Gurnihal GPT</h1>
-                </div>
-                <button onclick="toggleModal('settings-modal')" class="text-xs font-bold bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-full hover:ring-2 ring-indigo-500 transition-all">
-                    ⚙️ SETTINGS
-                </button>
+        <main class="flex-1 flex flex-col h-full relative overflow-hidden">
+            <header class="h-14 flex items-center justify-between px-4 border-b border-gray-100 dark:border-gray-800">
+                <button onclick="toggleSidebar()" class="p-2 md:hidden">☰</button>
+                <div class="font-bold text-indigo-600 dark:text-indigo-400">Gurnihal GPT</div>
+                <div class="w-8"></div>
             </header>
 
-            <div id="chat-container" class="flex-1 overflow-y-auto p-4 md:px-20 lg:px-48 space-y-8 pb-32">
-                <div id="welcome-screen" class="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6">
-                    <div class="w-20 h-20 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-3xl shadow-2xl flex items-center justify-center text-white text-4xl font-black rotate-3">G</div>
-                    <div>
-                        <h2 class="text-3xl font-bold mb-2">Gurnihal GPT</h2>
-                        <p class="text-gray-500 dark:text-gray-400">To start chatting, please configure your API access below.</p>
-                    </div>
-                    
-                    <div class="w-full max-w-sm bg-gray-50 dark:bg-gray-800/50 p-6 rounded-2xl
+            <div id="chat-window" class="flex-1 overflow-y-auto p-4 md:px-20 lg:px-40 pb-32">
+                <div id="setup-view" class="max-w-md mx-auto mt-20 text-center space-y-6">
+                    <div class="text-5xl">🤖</div>
+                    <h2 class="text-2xl font-bold">Gurnihal GPT Engine</h2>
+                    <p class="text-gray-500 text-sm">Enter your OpenRouter credentials to begin.</p>
+                    <input type="password" id="api-key-input" placeholder="OpenRouter API Key" class="w-full p-3 rounded-xl border dark:bg-gray-800 dark:border-gray-700 outline-none focus:ring-2 ring-indigo-500">
+                    <input type="text" id="model-input" placeholder="Model (e.g. google/gemini-2.0-pro-exp:free)" class="w-full p-3 rounded-xl border dark:bg-gray-800 dark:border-gray-700 outline-none focus:ring-2 ring-indigo-500">
+                    <button onclick="saveAndStart()" class="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold">Launch Interface</button>
+                </div>
+                <div id="messages-container" class="hidden space-y-6"></div>
+            </div>
+
+            <div class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white dark:from-[#131314] pt-10">
+                <div class="max-w-4xl mx-auto flex gap-2 bg-gray-100 dark:bg-gray-800 rounded-2xl p-2 items-end border border-transparent focus-within:border-indigo-500">
+                    <textarea id="user-input" rows="1" class="flex-1 bg-transparent border-none focus:ring-0 p-2 text-base outline-none resize-none" placeholder="Ask anything..."></textarea>
+                    <button onclick="sendMessage()" class="bg-indigo-600 text-white p-2 rounded-xl">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2L15 22L11 13L2 9L22 2Z"/></svg>
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="settings-modal" class="fixed inset-0 bg-black/50 hidden z-[100] flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-900 p-6 rounded-2xl w-full max-w-sm">
+            <h3 class="font-bold mb-4">Settings</h3>
+            <div class="space-y-3">
+                <input type="password" id="modal-key" class="w-full p-2 border rounded dark:bg-gray-800">
+                <input type="text" id="modal-model" class="w-full p-2 border rounded dark:bg-gray-800">
+                <button onclick="saveModal()" class="w-full bg-indigo-600 text-white py-2 rounded">Save</button>
+                <button onclick="toggleModal('settings-modal')" class="w-full text-gray-500">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Use a self-executing function to avoid global pollution and ensure execution
+        (function() {
+            let state = {
+                apiKey: localStorage.getItem('g_api') || '',
+                model: localStorage.getItem('g_model') || 'google/gemini-2.0-flash-lite-preview:free',
+                chats: JSON.parse(localStorage.getItem('g_chats') || '[]'),
+                currentId: null,
+                isDark: localStorage.getItem('g_dark') === 'true'
+            };
+
+            const ui = {
+                loading: document.getElementById('loading-overlay'),
+                setup: document.getElementById('setup-view'),
+                messages: document.getElementById('messages-container'),
+                chatList: document.getElementById('chat-list'),
+                userInput: document.getElementById('user-input')
+            };
+
+            window.toggleSidebar = () => document.getElementById('sidebar').classList.toggle('sidebar-closed');
+            window.toggleModal = (id) => document.getElementById(id).classList.toggle('hidden');
+            window.toggleDarkMode = () => {
